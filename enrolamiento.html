@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UdeC ParkApp — Mis Vehículos</title>
+  <meta name="description" content="Registra tu vehículo con patente para el sistema de estacionamientos UdeC." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css" />
+  <style>
+    .enrol-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-xl);
+      max-width: 1100px;
+    }
+
+    /* ── Plate Preview ── */
+    .plate-preview-card {
+      background: var(--gradient-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .plate-preview-card::before {
+      content: '🚗';
+      position: absolute;
+      font-size: 120px;
+      opacity: 0.06;
+      bottom: -20px;
+      right: -10px;
+    }
+
+    .plate-display {
+      display: inline-block;
+      background: #F5F0E0;
+      border: 4px solid #1A1A1A;
+      border-radius: 14px;
+      padding: 12px 24px;
+      margin: var(--space-lg) auto;
+      position: relative;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      min-width: 220px;
+    }
+
+    .plate-country-strip {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 36px;
+      background: #0039A6;
+      border-radius: 8px 0 0 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    .plate-flag { font-size: 14px; }
+    .plate-code { font-size: 8px; font-weight: 700; color: white; letter-spacing: 0.5px; }
+
+    .plate-number {
+      font-family: 'Inter', monospace;
+      font-size: 36px;
+      font-weight: 900;
+      color: #1A1A1A;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-left: 28px;
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .plate-number.empty { color: #AAAAAA; }
+
+    /* ── Form Card ── */
+    .form-card {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+    }
+
+    .form-card-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: var(--space-xl);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    /* ── Vehicle Type Selector ── */
+    .vehicle-type-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-sm);
+      margin-bottom: var(--space-md);
+    }
+
+    .vehicle-type-btn {
+      background: var(--bg-input);
+      border: 2px solid transparent;
+      border-radius: var(--radius-md);
+      padding: var(--space-sm);
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .vehicle-type-btn:hover { border-color: var(--glass-border); background: var(--bg-card-hover); }
+
+    .vehicle-type-btn.selected {
+      border-color: var(--udec-blue-light);
+      background: rgba(0,85,179,0.15);
+    }
+
+    .vehicle-type-emoji { font-size: 28px; display: block; margin-bottom: 4px; }
+    .vehicle-type-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+
+    /* ── Plate Input Special ── */
+    .plate-input {
+      font-family: 'Inter', monospace;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .plate-format-hint {
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+    }
+
+    .plate-format-chip {
+      background: var(--bg-input);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-full);
+      padding: 4px 12px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .plate-format-chip:hover { background: rgba(0,85,179,0.2); color: var(--text-primary); border-color: var(--udec-blue-light); }
+
+    /* ── Vehicles List ── */
+    .vehicles-list-card {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      grid-column: 1 / -1;
+    }
+
+    .vehicles-list-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: var(--space-lg);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .vehicle-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      padding: var(--space-md);
+      background: var(--bg-input);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--space-sm);
+      transition: all var(--transition-fast);
+    }
+
+    .vehicle-item:hover { background: var(--bg-card-hover); border-color: rgba(255,255,255,0.15); }
+
+    .vehicle-item-emoji { font-size: 28px; }
+
+    .vehicle-item-plate {
+      font-family: monospace;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      background: #F5F0E0;
+      color: #1A1A1A;
+      padding: 4px 12px;
+      border-radius: 8px;
+      border: 2px solid #1A1A1A;
+    }
+
+    .vehicle-item-info { flex: 1; }
+    .vehicle-item-name { font-size: 14px; font-weight: 600; }
+    .vehicle-item-sub  { font-size: 12px; color: var(--text-secondary); }
+
+    .vehicle-item-actions { display: flex; gap: 8px; }
+
+    .vehicle-delete-btn {
+      background: rgba(255,75,92,0.1);
+      border: 1px solid rgba(255,75,92,0.25);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      color: var(--status-full);
+      cursor: pointer;
+      font-size: 14px;
+      transition: all var(--transition-fast);
+    }
+
+    .vehicle-delete-btn:hover { background: rgba(255,75,92,0.25); }
+
+    .vehicle-primary-badge {
+      background: rgba(0,168,107,0.15);
+      border: 1px solid rgba(0,168,107,0.3);
+      border-radius: var(--radius-full);
+      padding: 3px 10px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--udec-green-light);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .empty-vehicles {
+      text-align: center;
+      padding: var(--space-2xl);
+      color: var(--text-muted);
+    }
+
+    .empty-vehicles-icon { font-size: 48px; margin-bottom: var(--space-md); }
+    .empty-vehicles-text { font-size: 15px; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text-secondary); }
+    .empty-vehicles-sub  { font-size: 13px; }
+
+    /* ── Step Indicator ── */
+    .steps {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: var(--space-xl);
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .step.active { color: var(--text-primary); }
+    .step.done { color: var(--udec-green-light); }
+
+    .step-num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--bg-input);
+      border: 2px solid var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+      transition: all var(--transition-base);
+    }
+
+    .step.active .step-num { border-color: var(--udec-blue-light); background: rgba(0,85,179,0.2); color: var(--udec-blue-light); }
+    .step.done .step-num   { border-color: var(--udec-green); background: rgba(0,168,107,0.2); color: var(--udec-green-light); }
+
+    .step-line {
+      flex: 1;
+      height: 2px;
+      background: var(--glass-border);
+      margin: 0 8px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .enrol-grid { grid-template-columns: 1fr; }
+      .vehicles-list-card { grid-column: 1; }
+    }
+
+    @media (max-width: 600px) {
+      .vehicle-type-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-animated"></div>
+
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <img src="assets/logo.png" alt="Udec Parking Logo" style="height: 56px; width: 100%; object-fit: contain; mix-blend-mode: lighten; filter: drop-shadow(0 0 10px rgba(0, 168, 107, 0.3));">
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Principal</div>
+        <a class="nav-item" href="dashboard.html"><span class="nav-icon">🗺️</span> Mapa en Vivo</a>
+        <a class="nav-item" href="notificaciones.html"><span class="nav-icon">🔔</span> Notificaciones <span class="nav-badge" id="notifBadge">0</span></a>
+        <a class="nav-item" href="chat.html"><span class="nav-icon">💬</span> Chat Soporte <span class="nav-badge green">Bot</span></a>
+        <div class="nav-section-title">Mi Cuenta</div>
+        <a class="nav-item active" href="enrolamiento.html"><span class="nav-icon">🚗</span> Mis Vehículos</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-card" onclick="handleLogout()">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-info">
+            <div class="user-name" id="userName">Cargando...</div>
+            <div class="user-role" id="userRole">—</div>
+          </div>
+          <span class="user-logout">⏻</span>
+        </div>
+      </div>
+    </nav>
+
+    <div class="main-content">
+      <header class="topbar">
+        <button class="hamburger" onclick="toggleSidebar()">☰</button>
+        <div>
+          <div class="topbar-title">Enrolamiento de Vehículos</div>
+          <div class="topbar-subtitle">Registra tu patente para acceder al sistema</div>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <div class="page-header">
+          <h1 class="page-title">🚗 Mis Vehículos</h1>
+          <p class="page-description">Registra hasta 2 vehículos con tu cuenta institucional UdeC</p>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="steps" id="stepIndicator">
+          <div class="step active" id="step1">
+            <div class="step-num">1</div>
+            <span>Tipo</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step" id="step2">
+            <div class="step-num">2</div>
+            <span>Patente</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step" id="step3">
+            <div class="step-num">3</div>
+            <span>Detalles</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step" id="step4">
+            <div class="step-num">4</div>
+            <span>Confirmar</span>
+          </div>
+        </div>
+
+        <div class="enrol-grid">
+
+          <!-- LEFT: Preview -->
+          <div class="plate-preview-card">
+            <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:var(--space-sm);text-transform:uppercase;letter-spacing:0.8px;">Vista previa</div>
+            <div class="plate-display" id="plateDisplay">
+              <div class="plate-country-strip">
+                <span class="plate-flag">🇨🇱</span>
+                <span class="plate-code">CL</span>
+              </div>
+              <div class="plate-number empty" id="platePreview">XXXX-00</div>
+            </div>
+
+            <div style="margin-top:var(--space-lg);">
+              <div style="font-size:28px;" id="previewEmoji">🚗</div>
+              <div style="font-size:15px;font-weight:700;margin-top:8px;" id="previewModel">Selecciona tipo y modelo</div>
+              <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;" id="previewColor">—</div>
+            </div>
+
+            <hr class="divider" />
+
+            <div style="text-align:left;">
+              <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">📋 Formatos aceptados en Chile:</div>
+              <div style="font-size:13px;color:var(--text-muted);">
+                <span style="color:var(--udec-gold)">ABCD-12</span> · Auto/Camioneta (nuevo)<br>
+                <span style="color:var(--udec-gold)">AB-1234</span> · Vehículo antiguo<br>
+                <span style="color:var(--udec-gold)">ABCD-12</span> · Moto (azul)
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Form -->
+          <div class="form-card">
+            <div class="form-card-title">✏️ Registrar nuevo vehículo</div>
+
+            <form id="enrollForm" onsubmit="handleEnroll(event)">
+
+              <!-- Step 1: Type -->
+              <div class="form-group">
+                <label class="form-label">Tipo de vehículo</label>
+                <div class="vehicle-type-grid">
+                  <div class="vehicle-type-btn selected" onclick="selectVehicleType('auto', '🚗', this)" id="vtype-auto">
+                    <span class="vehicle-type-emoji">🚗</span>
+                    <span class="vehicle-type-label">Auto</span>
+                  </div>
+                  <div class="vehicle-type-btn" onclick="selectVehicleType('camioneta', '🛻', this)" id="vtype-camioneta">
+                    <span class="vehicle-type-emoji">🛻</span>
+                    <span class="vehicle-type-label">Camioneta</span>
+                  </div>
+                  <div class="vehicle-type-btn" onclick="selectVehicleType('moto', '🏍️', this)" id="vtype-moto">
+                    <span class="vehicle-type-emoji">🏍️</span>
+                    <span class="vehicle-type-label">Moto</span>
+                  </div>
+                  <div class="vehicle-type-btn" onclick="selectVehicleType('furgon', '🚐', this)" id="vtype-furgon">
+                    <span class="vehicle-type-emoji">🚐</span>
+                    <span class="vehicle-type-label">Furgón</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 2: Plate -->
+              <div class="form-group">
+                <label class="form-label" for="plateInput">Número de patente</label>
+                <input
+                  type="text"
+                  id="plateInput"
+                  class="form-input plate-input"
+                  placeholder="ABCD-12"
+                  maxlength="8"
+                  oninput="updatePlatePreview(this.value)"
+                  required
+                />
+                <div class="plate-format-hint" style="margin-top:6px;">
+                  <span class="plate-format-chip" onclick="setPlateExample('BCDF-45')">BCDF-45</span>
+                  <span class="plate-format-chip" onclick="setPlateExample('GH-5678')">GH-5678</span>
+                  <span class="plate-format-chip" onclick="setPlateExample('MHKJ-23')">MHKJ-23</span>
+                </div>
+                <span class="form-error" id="plateError" style="display:none;">⚠️ <span id="plateErrorMsg">Formato inválido</span></span>
+              </div>
+
+              <!-- Step 3: Details -->
+              <div class="form-group">
+                <label class="form-label" for="modelInput">Marca y modelo</label>
+                <input type="text" id="modelInput" class="form-input" placeholder="ej: Toyota Corolla" oninput="updatePreviewModel(this.value)" />
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">
+                <div class="form-group">
+                  <label class="form-label" for="yearInput">Año</label>
+                  <input type="number" id="yearInput" class="form-input" placeholder="2020" min="1990" max="2026" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="colorInput">Color</label>
+                  <select id="colorInput" class="form-select form-input" onchange="updatePreviewColor(this.value)">
+                    <option value="">Seleccionar</option>
+                    <option>Blanco</option>
+                    <option>Negro</option>
+                    <option>Gris</option>
+                    <option>Plata</option>
+                    <option>Rojo</option>
+                    <option>Azul</option>
+                    <option>Verde</option>
+                    <option>Amarillo</option>
+                    <option>Café</option>
+                    <option>Otro</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">¿Vehículo principal?</label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <input type="checkbox" id="isPrimary" style="accent-color:var(--udec-green);width:18px;height:18px;cursor:pointer;" checked />
+                  <label for="isPrimary" style="font-size:13px;color:var(--text-secondary);cursor:pointer;">Marcar como vehículo principal</label>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-full" style="margin-top:var(--space-sm);" id="enrollBtn">
+                ✅ Registrar Vehículo
+              </button>
+            </form>
+          </div>
+
+          <!-- VEHICLES LIST -->
+          <div class="vehicles-list-card">
+            <div class="vehicles-list-title">🚘 Vehículos Registrados <span id="vehicleCount" style="font-size:14px;color:var(--text-secondary);font-weight:400;">(0/2)</span></div>
+            <div id="vehicleList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    const session = AuthModule.requireAuth();
+    let vehicles = [];
+    let currentVehicleType = 'auto';
+    let currentEmoji = '🚗';
+
+    if (session) {
+      document.getElementById('userName').textContent = session.name;
+      document.getElementById('userRole').textContent = session.role === 'student' ? '🎓 Estudiante' : '👔 Funcionario';
+      document.getElementById('userAvatar').textContent = session.initials || session.name[0];
+      vehicles = session.vehicles || [];
+      renderVehicleList();
+      const notifCount = parseInt(localStorage.getItem('udec_notif_count') || '3');
+      document.getElementById('notifBadge').textContent = notifCount;
+      if (notifCount === 0) document.getElementById('notifBadge').style.display = 'none';
+    }
+
+    function selectVehicleType(type, emoji, el) {
+      currentVehicleType = type;
+      currentEmoji = emoji;
+      document.querySelectorAll('.vehicle-type-btn').forEach(b => b.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('previewEmoji').textContent = emoji;
+      updateStep(2);
+    }
+
+    function updatePlatePreview(raw) {
+      const val = raw.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      document.getElementById('plateInput').value = val;
+      const display = document.getElementById('platePreview');
+
+      if (val.length > 0) {
+        display.textContent = val || 'XXXX-00';
+        display.classList.remove('empty');
+      } else {
+        display.textContent = 'XXXX-00';
+        display.classList.add('empty');
+      }
+
+      if (val.length >= 6) updateStep(3);
+    }
+
+    function setPlateExample(example) {
+      document.getElementById('plateInput').value = example;
+      updatePlatePreview(example);
+    }
+
+    function updatePreviewModel(val) {
+      document.getElementById('previewModel').textContent = val || 'Sin especificar';
+      if (val.length > 2) updateStep(4);
+    }
+
+    function updatePreviewColor(val) {
+      document.getElementById('previewColor').textContent = val ? `Color: ${val}` : '—';
+    }
+
+    function updateStep(n) {
+      for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById(`step${i}`);
+        if (i < n) { el.className = 'step done'; el.querySelector('.step-num').textContent = '✓'; }
+        else if (i === n) { el.className = 'step active'; el.querySelector('.step-num').textContent = i; }
+        else { el.className = 'step'; el.querySelector('.step-num').textContent = i; }
+      }
+    }
+
+    function validatePlate(plate) {
+      // Chilean plate formats: ABCD-12 (4 letters + 2 numbers) or AB-1234 (2 letters + 4 numbers)
+      const patterns = [
+        /^[A-Z]{4}-[0-9]{2}$/, // New format ABCD-12
+        /^[A-Z]{2}-[0-9]{4}$/, // Old format AB-1234
+        /^[A-Z]{4}[0-9]{2}$/,  // Without dash
+      ];
+      return patterns.some(p => p.test(plate.toUpperCase()));
+    }
+
+    function handleEnroll(e) {
+      e.preventDefault();
+      const plate = document.getElementById('plateInput').value.trim().toUpperCase();
+      const model = document.getElementById('modelInput').value.trim();
+      const year  = document.getElementById('yearInput').value;
+      const color = document.getElementById('colorInput').value;
+      const isPrimary = document.getElementById('isPrimary').checked;
+
+      // Validate
+      document.getElementById('plateError').style.display = 'none';
+      document.getElementById('plateInput').classList.remove('error');
+
+      if (!validatePlate(plate)) {
+        document.getElementById('plateError').style.display = 'flex';
+        document.getElementById('plateErrorMsg').textContent = 'Formato de patente inválido. Usa: ABCD-12 o AB-1234';
+        document.getElementById('plateInput').classList.add('error');
+        return;
+      }
+
+      if (vehicles.find(v => v.plate === plate)) {
+        document.getElementById('plateError').style.display = 'flex';
+        document.getElementById('plateErrorMsg').textContent = 'Esta patente ya está registrada';
+        document.getElementById('plateInput').classList.add('error');
+        showToast('error', '❌ Duplicado', 'Esta patente ya está en tu lista');
+        return;
+      }
+
+      if (vehicles.length >= 2) {
+        showToast('warning', '⚠️ Límite alcanzado', 'Solo puedes registrar hasta 2 vehículos. Elimina uno primero.');
+        return;
+      }
+
+      const btn = document.getElementById('enrollBtn');
+      btn.classList.add('btn-loading');
+      btn.disabled = true;
+
+      setTimeout(() => {
+        const newVehicle = {
+          plate,
+          type: currentVehicleType,
+          emoji: currentEmoji,
+          model: model || 'Sin especificar',
+          year: year || '—',
+          color: color || 'Sin especificar',
+          primary: isPrimary || vehicles.length === 0,
+          registeredAt: new Date().toISOString()
+        };
+
+        // If marking as primary, unmark others
+        if (isPrimary) vehicles.forEach(v => v.primary = false);
+
+        vehicles.push(newVehicle);
+        AuthModule.updateVehicles(vehicles);
+        renderVehicleList();
+
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+
+        // Reset form
+        document.getElementById('enrollForm').reset();
+        document.getElementById('platePreview').textContent = 'XXXX-00';
+        document.getElementById('platePreview').classList.add('empty');
+        document.getElementById('previewModel').textContent = 'Selecciona tipo y modelo';
+        document.getElementById('previewColor').textContent = '—';
+        document.getElementById('previewEmoji').textContent = '🚗';
+        updateStep(1);
+
+        showToast('success', '✅ Vehículo registrado', `Patente ${plate} añadida correctamente`);
+      }, 1000);
+    }
+
+    function renderVehicleList() {
+      const container = document.getElementById('vehicleList');
+      document.getElementById('vehicleCount').textContent = `(${vehicles.length}/2)`;
+
+      if (vehicles.length === 0) {
+        container.innerHTML = `
+          <div class="empty-vehicles">
+            <div class="empty-vehicles-icon">🚙</div>
+            <div class="empty-vehicles-text">Aún no tienes vehículos registrados</div>
+            <div class="empty-vehicles-sub">Registra tu patente para aparecer en el sistema de acceso</div>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = vehicles.map((v, i) => `
+        <div class="vehicle-item" id="vi-${i}">
+          <span class="vehicle-item-emoji">${v.emoji || '🚗'}</span>
+          <div class="vehicle-item-plate">${v.plate}</div>
+          <div class="vehicle-item-info">
+            <div class="vehicle-item-name">${v.model}</div>
+            <div class="vehicle-item-sub">${v.type} · ${v.color} · ${v.year}</div>
+          </div>
+          ${v.primary ? '<span class="vehicle-primary-badge">Principal</span>' : ''}
+          <div class="vehicle-item-actions">
+            ${!v.primary ? `<button class="btn btn-ghost btn-sm" onclick="setPrimary(${i})" title="Marcar como principal">⭐</button>` : ''}
+            <button class="vehicle-delete-btn" onclick="deleteVehicle(${i})" title="Eliminar vehículo">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function deleteVehicle(index) {
+      if (!confirm(`¿Eliminar el vehículo con patente ${vehicles[index].plate}?`)) return;
+      vehicles.splice(index, 1);
+      if (vehicles.length > 0 && !vehicles.find(v => v.primary)) {
+        vehicles[0].primary = true;
+      }
+      AuthModule.updateVehicles(vehicles);
+      renderVehicleList();
+      showToast('info', '🗑️ Eliminado', 'Vehículo eliminado del sistema');
+    }
+
+    function setPrimary(index) {
+      vehicles.forEach((v, i) => v.primary = i === index);
+      AuthModule.updateVehicles(vehicles);
+      renderVehicleList();
+      showToast('success', '⭐ Principal actualizado', `${vehicles[index].plate} es ahora tu vehículo principal`);
+    }
+
+    function handleLogout() {
+      if (confirm('¿Deseas cerrar sesión?')) {
+        AuthModule.logout();
+        window.location.href = 'index.html';
+      }
+    }
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    function showToast(type, title, msg, duration = 4000) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+      toast.innerHTML = `<span class="toast-icon">${icons[type]}</span><div class="toast-body"><div class="toast-title">${title}</div><div class="toast-msg">${msg}</div></div><span class="toast-close" onclick="this.parentElement.remove()">✕</span>`;
+      container.appendChild(toast);
+      setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, duration);
+    }
+  </script>
+</body>
+</html>

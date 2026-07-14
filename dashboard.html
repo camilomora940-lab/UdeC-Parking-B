@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UdeC ParkApp — Mapa de Estacionamientos</title>
+  <meta name="description"
+    content="Monitorea en tiempo real los estacionamientos del campus Universidad de Concepción." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/main.css?v=2.0" />
+  <style>
+    /* ── Dashboard Layout ── */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      grid-template-rows: auto 1fr;
+      gap: var(--space-lg);
+      height: calc(100vh - 73px - 48px);
+    }
+
+    /* ── Map Container ── */
+    .map-wrapper {
+      grid-column: 1;
+      grid-row: 1 / -1;
+      position: relative;
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--shadow-md);
+    }
+
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      min-height: 500px;
+    }
+
+    .map-overlay-toolbar {
+      position: absolute;
+      top: var(--space-md);
+      left: var(--space-md);
+      z-index: 1000;
+      display: flex;
+      gap: var(--space-sm);
+    }
+
+    .map-search {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 8px 14px;
+      color: var(--text-primary);
+      font-size: 13px;
+      width: 220px;
+    }
+
+    .map-search::placeholder {
+      color: var(--text-muted);
+    }
+
+    .map-search:focus {
+      border-color: var(--udec-blue-light);
+      outline: none;
+    }
+
+    .map-btn {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      color: var(--text-primary);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .map-btn:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .map-legend {
+      position: absolute;
+      bottom: var(--space-md);
+      left: var(--space-md);
+      z-index: 1000;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+    }
+
+    .legend-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .map-update-badge {
+      position: absolute;
+      top: var(--space-md);
+      right: var(--space-md);
+      z-index: 1000;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-full);
+      padding: 5px 12px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--status-available);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    /* ── Right Panel ── */
+    .right-panel {
+      grid-column: 2;
+      grid-row: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    /* ── Mini Stats ── */
+    .mini-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-sm);
+    }
+
+    .mini-stat {
+      background: var(--gradient-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      text-align: center;
+    }
+
+    .mini-stat-val {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+
+    .mini-stat-lbl {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* ── Sector List ── */
+    .sectors-panel {
+      flex: 1;
+    }
+
+    .sectors-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-md);
+    }
+
+    .sectors-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .sectors-filter {
+      display: flex;
+      gap: 4px;
+    }
+
+    .filter-btn {
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--bg-input);
+      color: var(--text-secondary);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .filter-btn.active {
+      background: var(--gradient-primary);
+      color: white;
+    }
+
+    .sector-card {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      margin-bottom: var(--space-sm);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .sector-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateX(3px);
+    }
+
+    .sector-card.selected {
+      border-color: var(--udec-blue-light);
+      box-shadow: 0 0 0 2px rgba(0, 85, 179, 0.2);
+    }
+
+    .sector-header-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .sector-emoji {
+      font-size: 20px;
+    }
+
+    .sector-name {
+      font-size: 13px;
+      font-weight: 700;
+      flex: 1;
+    }
+
+    .sector-avail {
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .sector-avail.green {
+      color: var(--status-available);
+    }
+
+    .sector-avail.yellow {
+      color: var(--status-limited);
+    }
+
+    .sector-avail.red {
+      color: var(--status-full);
+    }
+
+    .sector-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* Trend indicators */
+    .trend-up {
+      color: var(--status-full);
+    }
+
+    .trend-down {
+      color: var(--status-available);
+    }
+
+    .trend-stable {
+      color: var(--text-muted);
+    }
+
+    /* ── Chart ── */
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+    }
+
+    .chart-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: var(--space-sm);
+    }
+
+    .chart-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 60px;
+    }
+
+    .chart-bar-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      height: 100%;
+    }
+
+    .chart-bar {
+      width: 100%;
+      border-radius: 3px 3px 0 0;
+      background: linear-gradient(to top, var(--udec-blue-dark), var(--udec-blue-light));
+      transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      min-height: 2px;
+      align-self: flex-end;
+    }
+
+    .chart-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* ── Leaflet Overrides ── */
+    #map {
+      width: 100%;
+      height: 100%;
+      min-height: 500px;
+      z-index: 1;
+    }
+
+    .leaflet-popup-content-wrapper {
+      background: #0A1628;
+      color: #F0F6FF;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .leaflet-popup-content {
+      margin: 0;
+      width: 260px !important;
+    }
+
+    .leaflet-popup-tip {
+      background: #0A1628;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .leaflet-container a.leaflet-popup-close-button {
+      color: #8BA4C2;
+      padding: 12px 12px 0 0;
+      width: 24px;
+      height: 24px;
+      font-size: 18px;
+    }
+
+    .leaflet-container a.leaflet-popup-close-button:hover {
+      color: #FFF;
+      background: transparent;
+    }
+
+    .popup-header {
+      padding: 16px 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .popup-emoji {
+      font-size: 28px;
+      background: rgba(255, 255, 255, 0.05);
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+    }
+
+    .popup-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #F0F6FF;
+      margin-bottom: 2px;
+    }
+
+    .popup-subtitle {
+      font-size: 11px;
+      color: #8BA4C2;
+      font-weight: 500;
+    }
+
+    .popup-body {
+      padding: 16px;
+    }
+
+    .popup-occupancy {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .popup-occ-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 8px;
+    }
+
+    .popup-occ-avail {
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+
+    .popup-progress {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .popup-progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .popup-info {
+      font-size: 12px;
+      color: #8BA4C2;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .popup-info span {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .popup-nav-btn {
+      display: block;
+      width: 100%;
+      margin-top: 16px;
+      padding: 10px;
+      background: linear-gradient(135deg, #003B7A, #00A86B);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+
+    .popup-nav-btn:hover {
+      opacity: 0.9;
+      color: white;
+      text-decoration: none;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 1100px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: 450px auto;
+        height: auto;
+      }
+
+      .map-wrapper {
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+      .right-panel {
+        grid-column: 1;
+        grid-row: 2;
+        height: auto;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-grid {
+        grid-template-rows: 350px auto;
+        gap: var(--space-md);
+      }
+      .map-overlay-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .map-search {
+        width: 100%;
+        max-width: 100%;
+      }
+      .sectors-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .sectors-filter {
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg-animated"></div>
+
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <img src="assets/logo.png" alt="Udec Parking Logo" style="height: 56px; width: 100%; object-fit: contain; mix-blend-mode: lighten; filter: drop-shadow(0 0 10px rgba(0, 168, 107, 0.3));">
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Principal</div>
+        <a class="nav-item active" href="dashboard.html" id="nav-dashboard">
+          <span class="nav-icon">🗺️</span> Mapa en Vivo
+        </a>
+        <a class="nav-item" href="notificaciones.html" id="nav-notif">
+          <span class="nav-icon">🔔</span> Notificaciones
+          <span class="nav-badge" id="notifBadge">0</span>
+        </a>
+        <a class="nav-item" href="chat.html" id="nav-chat">
+          <span class="nav-icon">💬</span> Chat Soporte
+          <span class="nav-badge green">Bot</span>
+        </a>
+
+        <div class="nav-section-title">Mi Cuenta</div>
+        <a class="nav-item" href="enrolamiento.html" id="nav-enrol">
+          <span class="nav-icon">🚗</span> Mis Vehículos
+        </a>
+
+        <div class="nav-section-title">Estado</div>
+        <div style="padding: 8px 8px; font-size: 12px; color: var(--text-muted);">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <div class="live-dot"></div> Actualización en vivo
+          </div>
+          <div id="lastUpdateTime" style="font-size:11px;">Cargando...</div>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-card" id="userCard" onclick="handleLogout()">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-info">
+            <div class="user-name" id="userName">Cargando...</div>
+            <div class="user-role" id="userRole">—</div>
+          </div>
+          <span class="user-logout" title="Cerrar sesión">⏻</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Topbar -->
+      <header class="topbar">
+        <button class="hamburger" onclick="toggleSidebar()">☰</button>
+        <div>
+          <div class="topbar-title">Mapa de Estacionamientos</div>
+          <div class="topbar-subtitle" id="topbarSubtitle">Campus Universidad de Concepción</div>
+        </div>
+        <div style="margin-left:auto; display:flex; gap: 8px; align-items:center;">
+          <button class="btn btn-secondary btn-sm" onclick="refreshData()">🔄 Actualizar</button>
+          <button class="btn btn-primary btn-sm" onclick="window.location.href='enrolamiento.html'">🚗 Mi Auto</button>
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <div class="page-content">
+        <div class="dashboard-grid">
+
+          <!-- MAP -->
+          <div class="map-wrapper">
+            <!-- Toolbar -->
+            <div class="map-overlay-toolbar">
+              <input class="map-search" id="mapSearch" type="text" placeholder="🔍 Buscar sector..."
+                oninput="filterSectors(this.value)" />
+              <button class="map-btn" onclick="resetMapView()" title="Centrar mapa">🎯</button>
+              <button class="map-btn" onclick="locateGPS()" title="Ubicación GPS" id="gpsBtn">📍</button>
+              <button class="map-btn" onclick="toggleSatellite()" title="Vista satélite" id="satelliteBtn">🛰️</button>
+            </div>
+
+            <!-- Live badge -->
+            <div class="map-update-badge">
+              <div class="live-dot"></div>
+              <span id="mapUpdateTime">En vivo</span>
+            </div>
+
+            <!-- Map -->
+            <div id="map"></div>
+
+            <!-- Legend -->
+            <div class="map-legend">
+              <div class="legend-title">Estado</div>
+              <div class="legend-item">
+                <div class="legend-dot" style="background:#00D185;"></div> Disponible
+              </div>
+              <div class="legend-item">
+                <div class="legend-dot" style="background:#FFB800;"></div> Limitado
+              </div>
+              <div class="legend-item">
+                <div class="legend-dot" style="background:#FF4B5C;"></div> Lleno
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT PANEL -->
+          <div class="right-panel">
+
+            <!-- Mini Stats -->
+            <div class="mini-stats">
+              <div class="mini-stat">
+                <div class="mini-stat-val" id="statAvail" style="color:var(--status-available)">—</div>
+                <div class="mini-stat-lbl">Disponibles</div>
+              </div>
+              <div class="mini-stat">
+                <div class="mini-stat-val" id="statOccupied" style="color:var(--status-full)">—</div>
+                <div class="mini-stat-lbl">Ocupados</div>
+              </div>
+              <div class="mini-stat">
+                <div class="mini-stat-val" id="statTotal" style="color:var(--udec-blue-light)">660</div>
+                <div class="mini-stat-lbl">Total</div>
+              </div>
+              <div class="mini-stat">
+                <div class="mini-stat-val" id="statFull" style="color:var(--status-limited)">—</div>
+                <div class="mini-stat-lbl">Sectores llenos</div>
+              </div>
+            </div>
+
+            <!-- Occupancy Chart -->
+            <div class="chart-card">
+              <div class="chart-title">📊 Ocupación últimas 8 horas</div>
+              <div class="chart-bars" id="chartBars"></div>
+            </div>
+
+            <!-- Sectors List -->
+            <div class="sectors-panel">
+              <div class="sectors-header">
+                <div class="sectors-title">Sectores del Campus</div>
+                <div class="sectors-filter">
+                  <button class="filter-btn active" onclick="filterStatus('all', this)">Todos</button>
+                  <button class="filter-btn" onclick="filterStatus('available', this)"
+                    style="color:var(--status-available)">🟢</button>
+                  <button class="filter-btn" onclick="filterStatus('limited', this)"
+                    style="color:var(--status-limited)">🟡</button>
+                  <button class="filter-btn" onclick="filterStatus('full', this)"
+                    style="color:var(--status-full)">🔴</button>
+                </div>
+              </div>
+              <div id="sectorList"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2D Map -->
+  <div class="modal-overlay" id="mapModalOverlay" onclick="closeMapModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 id="modalTitle">Vista 2D del Sector</h3>
+          <p id="modalSubtitle" style="font-size:12px; color:var(--text-secondary);"></p>
+        </div>
+        <button class="modal-close" onclick="closeMapModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="parking-2d-layout" id="modalBody2D">
+          <!-- Spots generated dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-config.js"></script>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/parking.js"></script>
+  <script>
+    // Toast helper
+    function showToast(type, title, msg, duration = 4000) {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+      toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
+        <div class="toast-body">
+          <div class="toast-title">${title}</div>
+          <div class="toast-msg">${msg}</div>
+        </div>
+        <span class="toast-close" onclick="this.parentElement.remove()">✕</span>`;
+      container.appendChild(toast);
+      setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, duration);
+    }
+    // ── Auth Check ──
+    (async () => {
+      const session = await AuthModule.requireAuth();
+      if (session) {
+        document.getElementById('userName').textContent = session.name;
+        document.getElementById('userRole').textContent = session.role === 'student' ? '🎓 Estudiante' : '👔 Funcionario';
+        document.getElementById('userAvatar').textContent = session.initials || session.name[0].toUpperCase();
+        const badge = document.getElementById('notifBadge');
+        const count = parseInt(localStorage.getItem('udec_notif_count') || '3');
+        badge.textContent = count;
+        if (count === 0) badge.style.display = 'none';
+      }
+    })();
+
+    // ── Map Init ──
+    let map;
+    let markers = {};
+    let activePopupId = null;
+
+    // Inicializar mapa de Leaflet
+    map = L.map('map', {
+      zoomControl: false,
+      attributionControl: false,
+      maxZoom: 22
+    }).setView([-36.82814, -73.03363], 16);
+
+    // Capa base clara por defecto
+    let baseLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 22,
+      maxNativeZoom: 19
+    }).addTo(map);
+
+    let isSatellite = false;
+
+    function toggleSatellite() {
+      isSatellite = !isSatellite;
+      const btn = document.getElementById('satelliteBtn');
+
+      if (isSatellite) {
+        baseLayer.setUrl('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+        btn.classList.add('active');
+        btn.style.background = 'var(--primary)';
+        btn.style.color = '#fff';
+      } else {
+        baseLayer.setUrl('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png');
+        btn.classList.remove('active');
+        btn.style.background = 'rgba(10, 22, 40, 0.6)';
+        btn.style.color = '#8BA4C2';
+      }
+    }
+
+    function locateGPS() {
+      if (!navigator.geolocation) {
+        showToast('error', 'GPS no soportado', 'Tu navegador no soporta geolocalización.');
+        return;
+      }
+      showToast('info', 'Ubicando...', 'Obteniendo señal GPS...', 2000);
+      map.locate({ setView: true, maxZoom: 18 });
+      map.once('locationfound', function (e) {
+        showToast('success', 'Ubicado', 'Se ha centrado el mapa en tu posición.');
+      });
+      map.once('locationerror', function (e) {
+        showToast('error', 'Error GPS', 'No se pudo obtener tu ubicación.');
+      });
+    }
+
+    function createMarkerIcon(sector) {
+      const colors = {
+        available: '#00D185',
+        limited: '#FFB800',
+        full: '#FF4B5C'
+      };
+
+      const color = colors[sector.status];
+      const pct = sector.occupancyPercent;
+
+      const html = `
+        <div style="
+          width: 48px;
+          height: 48px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, rgba(6, 14, 26, 0.95), rgba(10, 22, 40, 0.95));
+          border: 2px solid ${color};
+          border-radius: 14px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 15px ${color}44;
+          position: relative;
+        ">
+          <span style="font-size: 16px; line-height: 1;">${sector.emoji}</span>
+          <span style="font-size: 10px; font-weight: 700; color: ${color}; margin-top: 2px; line-height: 1;">${pct}%</span>
+          
+          <div style="
+            position: absolute;
+            bottom: -6px;
+            width: 10px;
+            height: 10px;
+            background: rgba(10, 22, 40, 0.95);
+            border-right: 2px solid ${color};
+            border-bottom: 2px solid ${color};
+            transform: rotate(45deg);
+          "></div>
+        </div>
+      `;
+
+      return L.divIcon({
+        className: 'custom-div-icon',
+        html: html,
+        iconSize: [48, 48],
+        iconAnchor: [24, 52],
+        popupAnchor: [0, -56]
+      });
+    }
+
+    function createPopupHTML(sector) {
+      const colors = {
+        available: '#00D185',
+        limited: '#FFB800',
+        full: '#FF4B5C'
+      };
+      const color = colors[sector.status];
+      const trendIcon = sector.trend === 'up' ? '📈' : sector.trend === 'down' ? '📉' : '➡️';
+      const trendText = sector.trend === 'up' ? 'Llenándose rápido' : sector.trend === 'down' ? 'Liberándose' : 'Estable';
+
+      return `
+        <div class="popup-header">
+          <div class="popup-emoji">${sector.emoji}</div>
+          <div>
+            <div class="popup-title">${sector.name}</div>
+            <div class="popup-subtitle">Zona ${sector.zone} · ${sector.level === 'multilevel' ? 'Multi-nivel' : 'Superficie'}</div>
+          </div>
+        </div>
+        
+        <div class="popup-body">
+          <div class="popup-occupancy">
+            <div class="popup-occ-row">
+              <div>
+                <div style="font-size: 11px; color: #8BA4C2; margin-bottom: 2px;">Espacios disponibles</div>
+                <div class="popup-occ-avail" style="color: ${color}">${sector.available}</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 11px; color: #8BA4C2; margin-bottom: 4px;">de ${sector.capacity} totales</div>
+                <span style="font-size: 11px; font-weight: 700; color: ${color}; background: ${color}22; padding: 4px 10px; border-radius: 20px;">
+                  ${sector.statusLabel}
+                </span>
+              </div>
+            </div>
+            
+            <div class="popup-progress">
+              <div class="popup-progress-fill" style="width: ${sector.occupancyPercent}%; background: ${color};"></div>
+            </div>
+          </div>
+          
+          <div class="popup-info">
+            <span>${trendIcon} Tendencia: ${trendText}</span>
+            <span>🕐 Horario: ${sector.hours}</span>
+            <span>📞 Asistencia: ${sector.contact}</span>
+          </div>
+          
+          <div style="display:flex; gap: 8px; margin-top: 16px;">
+            <button onclick="toggleParking('${sector.id}')" class="popup-nav-btn" style="flex:1; background: ${userParkedSector === sector.id ? '#FF4B5C' : 'var(--udec-green)'}; border-color: ${userParkedSector === sector.id ? '#FF4B5C' : 'var(--udec-green)'}; color: white;">
+              ${userParkedSector === sector.id ? '🚪 Liberar Espacio' : '🚘 Me Estacioné Aquí'}
+            </button>
+            <button onclick="openMapModal('${sector.id}')" class="popup-nav-btn" style="flex:1; background: rgba(255,255,255,0.1);">
+              🗺️ Mapa 2D
+            </button>
+          </div>
+          
+          <a href="https://www.google.com/maps/dir/?api=1&destination=${sector.lat},${sector.lng}" target="_blank" class="popup-nav-btn" style="margin-top: 8px;">
+            🧭 Obtener indicaciones
+          </a>
+        </div>
+      `;
+    }
+
+    function addOrUpdateMarkers(sectors) {
+      sectors.forEach(sector => {
+        if (markers[sector.id]) {
+          markers[sector.id].setIcon(createMarkerIcon(sector));
+          if (activePopupId === sector.id) {
+            markers[sector.id].setPopupContent(createPopupHTML(sector));
+          } else {
+            markers[sector.id]._popup.setContent(createPopupHTML(sector));
+          }
+        } else {
+          const marker = L.marker([sector.lat, sector.lng], {
+            icon: createMarkerIcon(sector)
+          }).addTo(map);
+
+          marker.bindPopup(createPopupHTML(sector));
+
+          marker.on('popupopen', () => { activePopupId = sector.id; });
+          marker.on('popupclose', () => { if (activePopupId === sector.id) activePopupId = null; });
+
+          marker.on('click', () => { selectSector(sector.id); });
+
+          markers[sector.id] = marker;
+        }
+      });
+    }
+
+    // ── Sector List ──
+    let currentFilter = 'all';
+    let selectedSectorId = null;
+
+    function renderSectorList(sectors) {
+      const container = document.getElementById('sectorList');
+      const filtered = currentFilter === 'all' ? sectors : sectors.filter(s => s.status === currentFilter);
+
+      container.innerHTML = filtered.map(s => {
+        const trendIcon = s.trend === 'up' ? '<span class="trend-up">↑</span>' : s.trend === 'down' ? '<span class="trend-down">↓</span>' : '<span class="trend-stable">→</span>';
+        const colorClass = s.status === 'available' ? 'green' : s.status === 'limited' ? 'yellow' : 'red';
+
+        return `
+          <div class="sector-card ${selectedSectorId === s.id ? 'selected' : ''}" onclick="selectSector('${s.id}')" id="scard-${s.id}">
+            <div class="sector-header-row">
+              <span class="sector-emoji">${s.emoji}</span>
+              <span class="sector-name">${s.name}</span>
+              <span class="sector-avail ${colorClass}">${s.available}</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill ${colorClass}" style="width:${s.occupancyPercent}%"></div>
+            </div>
+            <div class="sector-meta">
+              <span>${s.occupancyPercent}% ocupado</span>
+              <span>•</span>
+              <span>${trendIcon} ${s.trend === 'up' ? 'Subiendo' : s.trend === 'down' ? 'Bajando' : 'Estable'}</span>
+              <span>•</span>
+              <span>Cap. ${s.capacity}</span>
+            </div>
+            <div style="display:flex; gap: 8px; margin-top: 12px;">
+              <button onclick="toggleParking('${s.id}'); event.stopPropagation();" class="btn btn-primary btn-sm" style="flex:1; background: ${userParkedSector === s.id ? '#FF4B5C' : 'var(--udec-green)'}; border: none;">
+                ${userParkedSector === s.id ? '🚪 Liberar' : '🚘 Ocupar'}
+              </button>
+              <button onclick="openMapModal('${s.id}'); event.stopPropagation();" class="btn btn-secondary btn-sm" style="flex:1; background: rgba(255,255,255,0.02);">🗺️ Mapa 2D</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:var(--space-xl);font-size:13px;">No hay sectores con este estado actualmente</div>`;
+      }
+    }
+
+    function filterStatus(status, btn) {
+      currentFilter = status;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderSectorList(ParkingModule.getAllSectors());
+    }
+
+    function filterSectors(query) {
+      const sectors = ParkingModule.getAllSectors().filter(s =>
+        s.name.toLowerCase().includes(query.toLowerCase()) ||
+        s.zone.toLowerCase().includes(query.toLowerCase())
+      );
+      renderSectorList(sectors);
+    }
+
+    function selectSector(sectorId) {
+      selectedSectorId = sectorId;
+      const sector = ParkingModule.getSectorData(sectorId);
+
+      if (sector) {
+        map.flyTo([sector.lat, sector.lng], 18, {
+          duration: 1.5,
+          easeLinearity: 0.25
+        });
+
+        if (markers[sectorId]) {
+          markers[sectorId].openPopup();
+        }
+      }
+
+      document.querySelectorAll('.sector-card').forEach(card => card.classList.remove('selected'));
+      const card = document.getElementById(`scard-${sectorId}`);
+      if (card) card.classList.add('selected');
+    }
+
+    function resetMapView() {
+      map.flyTo([-36.82814, -73.03363], 16, {
+        duration: 1.5
+      });
+    }
+
+    // ── Stats ──
+    function updateStats(totals) {
+      document.getElementById('statAvail').textContent = totals.totalAvailable;
+      document.getElementById('statOccupied').textContent = totals.totalOccupied;
+      document.getElementById('statTotal').textContent = totals.totalCapacity;
+      document.getElementById('statFull').textContent = totals.full;
+    }
+
+    // ── Chart ──
+    function renderChart() {
+      const history = ParkingModule.getHistory();
+      const container = document.getElementById('chartBars');
+      container.innerHTML = history.map(h => `
+        <div class="chart-bar-wrap">
+          <div class="chart-bar" style="height:${h.pct}%;" title="${h.pct}% ocupado a ${h.label}"></div>
+          <span class="chart-label">${h.label}</span>
+        </div>
+      `).join('');
+    }
+
+    // ── Update Time ──
+    function updateTimestamp() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      document.getElementById('lastUpdateTime').textContent = `Últ. act: ${timeStr}`;
+      document.getElementById('mapUpdateTime').textContent = timeStr;
+    }
+
+    // ── Full Refresh ──
+    function refreshData() {
+      const sectors = ParkingModule.getAllSectors();
+      addOrUpdateMarkers(sectors);
+      renderSectorList(sectors);
+      updateStats(ParkingModule.getTotals());
+      updateTimestamp();
+      showToast('info', '🔄 Actualizado', 'Datos de estacionamiento actualizados', 2500);
+    }
+
+    // ── Logout ──
+    function handleLogout() {
+      if (confirm('¿Deseas cerrar sesión?')) {
+        AuthModule.logout();
+        window.location.href = 'index.html';
+      }
+    }
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    // ── Toast ──
+    function showToast(type, title, msg, duration = 4000) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+      toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
+        <div class="toast-body">
+          <div class="toast-title">${title}</div>
+          <div class="toast-msg">${msg}</div>
+        </div>
+        <span class="toast-close" onclick="this.parentElement.remove()">✕</span>`;
+      container.appendChild(toast);
+      setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, duration);
+    }
+
+    // ── 2D Map Modal ──
+    function openMapModal(sectorId) {
+      const sector = ParkingModule.getSectorData(sectorId);
+      if (!sector) return;
+      
+      document.getElementById('modalTitle').textContent = `Vista 2D: ${sector.name}`;
+      document.getElementById('modalSubtitle').textContent = `${sector.available} libres de ${sector.capacity} totales`;
+      
+      const container = document.getElementById('modalBody2D');
+      const laneCapacity = 20;
+      const numLanes = Math.ceil(sector.capacity / laneCapacity);
+      
+      const spots = Array(sector.capacity).fill(false);
+      for(let i=0; i<sector.occupied; i++) spots[i] = true;
+      for(let i = spots.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [spots[i], spots[j]] = [spots[j], spots[i]];
+      }
+      
+      const carClasses = ['car-blue', 'car-taxi', 'car-pickup', ''];
+      
+      let html = '';
+      let spotIndex = 0;
+      
+      for(let i=0; i<numLanes; i++) {
+        html += `<div class="parking-lane double">`;
+        for(let j=0; j<laneCapacity && spotIndex < sector.capacity; j++, spotIndex++) {
+          const isOccupied = spots[spotIndex];
+          const carClass = isOccupied ? carClasses[Math.floor(Math.random() * carClasses.length)] : '';
+          const stateClass = isOccupied ? `occupied ${carClass}` : 'empty';
+          const sideClass = j % 2 === 0 ? 'right-open' : 'left-open';
+          
+          html += `<div class="parking-spot-2d ${stateClass} ${sideClass}"></div>`;
+        }
+        html += `</div>`;
+      }
+      
+      container.innerHTML = html;
+      document.getElementById('mapModalOverlay').classList.add('active');
+    }
+    
+    function closeMapModal(e) {
+      if (e && e.target !== document.getElementById('mapModalOverlay') && !e.target.classList.contains('modal-close')) return;
+      document.getElementById('mapModalOverlay').classList.remove('active');
+    }
+
+    // ── Parking Actions ──
+    let userParkedSector = localStorage.getItem('udec_parked_sector') || null;
+
+    async function toggleParking(sectorId) {
+      if (userParkedSector === sectorId) {
+        // Release space
+        const { error } = await supabase.rpc('decrement_occupied', { sector_id: sectorId });
+        if (!error) {
+           userParkedSector = null;
+           localStorage.removeItem('udec_parked_sector');
+           showToast('info', 'Espacio liberado', 'Has marcado tu salida.');
+        } else {
+           showToast('error', 'Error', 'No pudimos liberar tu espacio.');
+        }
+      } else if (!userParkedSector) {
+        // Occupy space
+        const { error } = await supabase.rpc('increment_occupied', { sector_id: sectorId });
+        if (!error) {
+           userParkedSector = sectorId;
+           localStorage.setItem('udec_parked_sector', sectorId);
+           showToast('success', 'Vehículo Estacionado', 'Has ocupado un espacio exitosamente.');
+        } else {
+           showToast('error', 'Error', 'No pudimos registrar tu espacio.');
+        }
+      } else {
+        showToast('warning', 'Ya estás estacionado', 'Libera tu espacio actual antes de estacionarte en otro lado.');
+      }
+      
+      // Update UI immediately
+      const currentSectors = ParkingModule.getAllSectors();
+      addOrUpdateMarkers(currentSectors);
+      renderSectorList(currentSectors);
+    }
+
+    // ── Init ──
+    (async () => {
+      await ParkingModule.startSimulation((newSectors, totals) => {
+        addOrUpdateMarkers(newSectors);
+        renderSectorList(newSectors);
+        updateStats(totals);
+        updateTimestamp();
+
+        // Check alerts
+        const alerts = ParkingModule.checkAlerts(null, totals);
+        alerts.slice(0, 1).forEach(a => {
+          showToast(a.type === 'success' ? 'success' : 'warning', `🅿️ ${a.sector}`, a.msg);
+        });
+      });
+
+      renderChart();
+
+      // Timestamp refresher
+      setInterval(updateTimestamp, 1000);
+
+      // Welcome toast
+      setTimeout(() => {
+        const totals = ParkingModule.getTotals();
+        showToast('info', '🗺️ Bienvenido al mapa', `${totals.totalAvailable} espacios disponibles en ${totals.available} sectores`);
+      }, 800);
+    })();
+  </script>
+</body>
+
+</html>

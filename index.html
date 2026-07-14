@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UdeC ParkApp — Iniciar Sesión</title>
+  <meta name="description" content="Sistema de monitoreo de estacionamientos de la Universidad de Concepción. Inicia sesión con tu cuenta institucional UdeC." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css?v=2.0" />
+  <style>
+    /* ── Login Page Specific ── */
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+
+    .login-container {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    /* ── Left: Hero Panel ── */
+    .login-hero {
+      background: linear-gradient(160deg, var(--bg-primary) 0%, var(--udec-blue-dark) 60%, #001A3D 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-3xl);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-hero::before {
+      content: '';
+      position: absolute;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(0,168,107,0.2) 0%, transparent 70%);
+      bottom: -100px; left: -100px;
+    }
+
+    .login-hero::after {
+      content: '';
+      position: absolute;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(0,85,179,0.3) 0%, transparent 70%);
+      top: -80px; right: -80px;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      max-width: 400px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,168,107,0.15);
+      border: 1px solid rgba(0,168,107,0.3);
+      border-radius: var(--radius-full);
+      padding: 6px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--udec-green-light);
+      letter-spacing: 0.5px;
+      margin-bottom: var(--space-xl);
+      text-transform: uppercase;
+    }
+
+    .hero-title {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: -1.5px;
+      line-height: 1.1;
+      margin-bottom: var(--space-lg);
+    }
+
+    .hero-title span {
+      background: linear-gradient(135deg, var(--udec-green-light), var(--udec-blue-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: 16px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: var(--space-2xl);
+    }
+
+    /* Parking Lot Visual */
+    .parking-visual {
+      position: relative;
+      width: 280px;
+      height: 180px;
+      margin: 0 auto var(--space-xl);
+    }
+
+    .parking-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+      background: rgba(255,255,255,0.04);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      border: 1px solid var(--glass-border);
+    }
+
+    .parking-spot {
+      aspect-ratio: 1;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      animation: spotPulse 3s ease-in-out infinite;
+    }
+
+    .parking-spot.available {
+      background: rgba(0,209,133,0.2);
+      border: 1px solid rgba(0,209,133,0.4);
+      color: var(--status-available);
+    }
+
+    .parking-spot.limited {
+      background: rgba(255,184,0,0.2);
+      border: 1px solid rgba(255,184,0,0.4);
+      color: var(--status-limited);
+    }
+
+    .parking-spot.full {
+      background: rgba(255,75,92,0.2);
+      border: 1px solid rgba(255,75,92,0.4);
+      color: var(--status-full);
+    }
+
+    @keyframes spotPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: var(--space-xl);
+      justify-content: center;
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .hero-stat-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Right: Form Panel ── */
+    .login-form-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-3xl);
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+    }
+
+    .login-form-wrapper {
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .login-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      margin-bottom: var(--space-2xl);
+    }
+
+    .login-logo-icon {
+      width: 52px; height: 52px;
+      background: var(--gradient-primary);
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      box-shadow: var(--shadow-glow-blue);
+    }
+
+    .login-logo-text-main {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .login-logo-text-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .login-heading {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: var(--space-xs);
+    }
+
+    .login-subheading {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-xl);
+    }
+
+    /* Role Selector */
+    .role-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+      background: var(--bg-input);
+      padding: 4px;
+      border-radius: var(--radius-md);
+    }
+
+    .role-btn {
+      padding: 8px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: transparent;
+      transition: all var(--transition-fast);
+      text-align: center;
+      cursor: pointer;
+      border: none;
+    }
+
+    .role-btn.active {
+      background: var(--gradient-primary);
+      color: white;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Input with icon */
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .input-wrapper .form-input {
+      padding-left: 42px;
+    }
+
+    .input-toggle {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      transition: color var(--transition-fast);
+    }
+
+    .input-toggle:hover { color: var(--text-secondary); }
+
+    .login-divider {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      margin: var(--space-lg) 0;
+    }
+
+    .login-divider::before,
+    .login-divider::after {
+      content: '';
+      flex: 1;
+      border-top: 1px solid var(--glass-border);
+    }
+
+    .login-divider-text {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .forgot-link {
+      font-size: 13px;
+      color: var(--udec-green-light);
+      text-decoration: none;
+      transition: opacity var(--transition-fast);
+    }
+
+    .forgot-link:hover { opacity: 0.8; text-decoration: underline; }
+
+    .register-hint {
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: var(--space-lg);
+    }
+
+    .register-hint a {
+      color: var(--udec-green-light);
+      font-weight: 600;
+    }
+
+    .udec-domain-hint {
+      background: rgba(0,85,179,0.1);
+      border: 1px solid rgba(0,85,179,0.25);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: var(--space-xs);
+    }
+
+    /* Loading button state */
+    .btn-loading {
+      position: relative;
+      color: transparent !important;
+    }
+
+    .btn-loading::after {
+      content: '';
+      position: absolute;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .login-container { grid-template-columns: 1fr; }
+      .login-hero { display: none; }
+      .login-form-panel { padding: var(--space-xl) var(--space-lg); }
+    }
+    @media (max-width: 480px) {
+      .login-form-panel { padding: var(--space-xl) var(--space-md); }
+      .login-heading { font-size: 24px; }
+      .login-logo-icon { width: 40px; height: 40px; font-size: 20px; }
+      .login-logo-text-main { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-animated"></div>
+
+  <div class="login-container">
+    <!-- LEFT: Hero -->
+    <div class="login-hero">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span>●</span> Sistema en Tiempo Real
+        </div>
+
+        <div class="parking-grid" style="margin-bottom: 28px;">
+          <div class="parking-spot available" style="animation-delay:0s">🚗</div>
+          <div class="parking-spot available" style="animation-delay:0.2s">🚗</div>
+          <div class="parking-spot full" style="animation-delay:0.4s">🚘</div>
+          <div class="parking-spot available" style="animation-delay:0.6s">🚗</div>
+          <div class="parking-spot limited" style="animation-delay:0.8s">🚙</div>
+          <div class="parking-spot available" style="animation-delay:1s">🚗</div>
+          <div class="parking-spot full" style="animation-delay:0.1s">🚘</div>
+          <div class="parking-spot available" style="animation-delay:0.3s">🚗</div>
+          <div class="parking-spot available" style="animation-delay:0.5s">🚗</div>
+          <div class="parking-spot full" style="animation-delay:0.7s">🚘</div>
+          <div class="parking-spot available" style="animation-delay:0.9s">🚗</div>
+          <div class="parking-spot limited" style="animation-delay:1.1s">🚙</div>
+        </div>
+
+        <h1 class="hero-title">
+          Estacionamientos<br><span>Campus UdeC</span>
+        </h1>
+        <p class="hero-subtitle">
+          Monitorea en tiempo real la disponibilidad de todos los sectores del campus. 
+          Registra tu vehículo y recibe notificaciones instantáneas.
+        </p>
+
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <div class="hero-stat-value" style="color: var(--udec-green-light);">660</div>
+            <div class="hero-stat-label">Espacios totales</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-value" style="color: var(--udec-gold);">6</div>
+            <div class="hero-stat-label">Sectores</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-value" style="color: var(--udec-blue-light);">24/7</div>
+            <div class="hero-stat-label">Monitoreo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Form -->
+    <div class="login-form-panel">
+      <div class="login-form-wrapper">
+        <div class="login-logo">
+          <img src="assets/logo.png" alt="Udec Parking Logo" style="height: 72px; object-fit: contain; mix-blend-mode: lighten; filter: drop-shadow(0 0 15px rgba(0, 168, 107, 0.4)); transform: scale(1.1); margin-left: -10px;">
+        </div>
+
+        <h2 class="login-heading">Bienvenido/a</h2>
+        <p class="login-subheading">Ingresa con tu cuenta institucional UdeC</p>
+
+        <!-- Role Selector -->
+        <div class="role-selector" id="roleSelector">
+          <button class="role-btn active" id="roleStudent" onclick="selectRole('student')">
+            🎓 Estudiante
+          </button>
+          <button class="role-btn" id="roleStaff" onclick="selectRole('staff')">
+            👔 Funcionario
+          </button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="loginForm" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label class="form-label" for="emailInput">Correo institucional</label>
+            <div class="input-wrapper">
+              <span class="input-icon">✉️</span>
+              <input
+                type="email"
+                id="emailInput"
+                class="form-input"
+                placeholder="usuario@alumnos.udec.cl"
+                autocomplete="email"
+                required
+              />
+            </div>
+            <div class="udec-domain-hint" id="domainHint">
+              📌 Estudiantes: @alumnos.udec.cl &nbsp;|&nbsp; Funcionarios: @udec.cl
+            </div>
+            <span class="form-error" id="emailError" style="display:none;">⚠️ <span id="emailErrorMsg">Ingresa un correo UdeC válido</span></span>
+          </div>
+
+          <div class="form-group">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label class="form-label" for="passwordInput">Contraseña</label>
+              <a href="#" class="forgot-link" onclick="handleForgot(event)">¿Olvidaste tu contraseña?</a>
+            </div>
+            <div class="input-wrapper">
+              <span class="input-icon">🔒</span>
+              <input
+                type="password"
+                id="passwordInput"
+                class="form-input"
+                placeholder="••••••••"
+                autocomplete="current-password"
+                required
+              />
+              <span class="input-toggle" onclick="togglePassword()" title="Mostrar/ocultar contraseña">👁️</span>
+            </div>
+            <span class="form-error" id="passwordError" style="display:none;">⚠️ <span id="passwordErrorMsg">Contraseña incorrecta</span></span>
+          </div>
+
+          <div style="display:flex; align-items:center; gap: 8px; margin-bottom: var(--space-lg);">
+            <input type="checkbox" id="rememberMe" style="accent-color: var(--udec-green); width:16px; height:16px; cursor:pointer;" />
+            <label for="rememberMe" style="font-size:13px; color: var(--text-secondary); cursor:pointer;">Mantener sesión iniciada</label>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full btn-lg" id="loginBtn">
+            Iniciar Sesión →
+          </button>
+        </form>
+
+        <div class="login-divider"><span class="login-divider-text">o continúa con</span></div>
+
+        <button class="btn btn-secondary btn-full" onclick="handleDemoLogin()" id="demoBtn">
+          🎭 &nbsp; Modo Demo (sin cuenta)
+        </button>
+
+        <p class="register-hint">
+          ¿Primera vez? <a href="#" onclick="handleRegister(event)">Solicita acceso al sistema</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-config.js"></script>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let currentRole = 'student';
+
+    function selectRole(role) {
+      currentRole = role;
+      document.getElementById('roleStudent').classList.toggle('active', role === 'student');
+      document.getElementById('roleStaff').classList.toggle('active', role === 'staff');
+      const hint = document.getElementById('domainHint');
+      const placeholder = document.getElementById('emailInput');
+      if (role === 'student') {
+        hint.innerHTML = '📌 Estudiantes: @alumnos.udec.cl &nbsp;|&nbsp; Funcionarios: @udec.cl';
+        placeholder.placeholder = 'usuario@alumnos.udec.cl';
+      } else {
+        hint.innerHTML = '📌 Correo institucional: usuario@udec.cl';
+        placeholder.placeholder = 'usuario@udec.cl';
+      }
+    }
+
+    function togglePassword() {
+      const inp = document.getElementById('passwordInput');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    }
+
+    function handleForgot(e) {
+      e.preventDefault();
+      showToast('info', '📧 Recuperación de contraseña', 'Visita infoseguridad.udec.cl o contacta a DTI.');
+    }
+
+    function handleRegister(e) {
+      e.preventDefault();
+      showToast('info', '📝 Registro', 'Contacta a la Dirección de TI de tu unidad académica.');
+    }
+
+    function handleDemoLogin() {
+      const btn = document.getElementById('demoBtn');
+      btn.classList.add('btn-loading');
+      showToast('success', '🎭 Modo Demo', 'Entrando al panel de demostración...');
+      setTimeout(() => {
+        AuthModule.setDemoUser();
+        window.location.href = 'dashboard.html';
+      }, 1200);
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('emailInput').value.trim();
+      const password = document.getElementById('passwordInput').value;
+      const btn = document.getElementById('loginBtn');
+
+      // Reset errors
+      document.getElementById('emailError').style.display = 'none';
+      document.getElementById('passwordError').style.display = 'none';
+
+      // Validate domain
+      const validDomains = ['@alumnos.udec.cl', '@udec.cl'];
+      const hasValidDomain = validDomains.some(d => email.endsWith(d));
+      if (!hasValidDomain) {
+        document.getElementById('emailError').style.display = 'flex';
+        document.getElementById('emailErrorMsg').textContent = 'Debes usar un correo @udec.cl o @alumnos.udec.cl';
+        document.getElementById('emailInput').classList.add('error');
+        return;
+      }
+
+      document.getElementById('emailInput').classList.remove('error');
+
+      if (password.length < 6) {
+        document.getElementById('passwordError').style.display = 'flex';
+        document.getElementById('passwordErrorMsg').textContent = 'La contraseña debe tener al menos 6 caracteres';
+        document.getElementById('passwordInput').classList.add('error');
+        return;
+      }
+
+      document.getElementById('passwordInput').classList.remove('error');
+
+      // Show loading
+      btn.classList.add('btn-loading');
+      btn.disabled = true;
+
+      try {
+        await AuthModule.login(email, password, currentRole);
+        showToast('success', '✅ Sesión iniciada', `Bienvenido/a, ${email.split('@')[0]}`);
+        setTimeout(() => window.location.href = 'dashboard.html', 1000);
+      } catch (err) {
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+        document.getElementById('passwordError').style.display = 'flex';
+        document.getElementById('passwordErrorMsg').textContent = err.message || 'Credenciales incorrectas';
+        showToast('error', '❌ Error de acceso', err.message || 'Credenciales incorrectas');
+      }
+    }
+
+    // Toast helper
+    function showToast(type, title, msg, duration = 4000) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+      toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
+        <div class="toast-body">
+          <div class="toast-title">${title}</div>
+          <div class="toast-msg">${msg}</div>
+        </div>
+        <span class="toast-close" onclick="this.parentElement.remove()">✕</span>`;
+      container.appendChild(toast);
+      setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, duration);
+    }
+
+    // Check if already logged in
+    (async () => {
+      if (await AuthModule.isLoggedIn()) {
+        window.location.href = 'dashboard.html';
+      }
+    })();
+  </script>
+</body>
+</html>

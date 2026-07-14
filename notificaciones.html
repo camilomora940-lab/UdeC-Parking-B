@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UdeC ParkApp — Notificaciones</title>
+  <meta name="description" content="Centro de notificaciones del sistema de estacionamientos UdeC." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css" />
+  <style>
+    /* ── Notifications Layout ── */
+    .notif-grid {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: var(--space-xl);
+      max-width: 1100px;
+    }
+
+    /* ── Filter Bar ── */
+    .filter-bar {
+      display: flex;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: var(--radius-full);
+      font-size: 13px;
+      font-weight: 600;
+      background: var(--bg-input);
+      border: 1px solid var(--glass-border);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .filter-chip:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+    .filter-chip.active { background: var(--gradient-primary); color: white; border-color: transparent; }
+
+    .filter-bar-right { margin-left: auto; }
+
+    /* ── Notification Item ── */
+    .notif-item {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md) var(--space-lg);
+      margin-bottom: var(--space-sm);
+      display: flex;
+      gap: var(--space-md);
+      align-items: flex-start;
+      transition: all var(--transition-fast);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .notif-item:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255,255,255,0.15);
+      transform: translateX(3px);
+    }
+
+    .notif-item.unread::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--udec-blue-light);
+    }
+
+    .notif-item.unread { background: rgba(0,85,179,0.07); }
+
+    .notif-icon {
+      width: 44px; height: 44px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .notif-icon.green  { background: rgba(0,209,133,0.15); }
+    .notif-icon.yellow { background: rgba(255,184,0,0.15); }
+    .notif-icon.red    { background: rgba(255,75,92,0.15); }
+    .notif-icon.blue   { background: rgba(0,85,179,0.15); }
+    .notif-icon.purple { background: rgba(138,43,226,0.15); }
+
+    .notif-body { flex: 1; }
+
+    .notif-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .notif-unread-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--udec-blue-light);
+      flex-shrink: 0;
+    }
+
+    .notif-msg { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+    .notif-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    .notif-dismiss {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: color var(--transition-fast);
+      flex-shrink: 0;
+      align-self: center;
+    }
+
+    .notif-dismiss:hover { color: var(--status-full); }
+
+    /* ── Right: Settings ── */
+    .settings-card {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-lg);
+    }
+
+    .settings-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: var(--space-lg);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .settings-section { margin-bottom: var(--space-lg); }
+
+    .settings-section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: var(--space-sm);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .toggle-row:last-child { border-bottom: none; }
+
+    .toggle-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative;
+      width: 38px; height: 20px;
+      flex-shrink: 0;
+    }
+
+    .toggle input { opacity: 0; width: 0; height: 0; }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--bg-input);
+      border-radius: var(--radius-full);
+      transition: var(--transition-fast);
+      border: 1px solid var(--glass-border);
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 14px; height: 14px;
+      left: 3px; top: 2px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      transition: var(--transition-fast);
+    }
+
+    .toggle input:checked + .toggle-slider { background: var(--udec-green); border-color: var(--udec-green); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(17px); background: white; }
+
+    /* ── Sector Alerts ── */
+    .sector-alert-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 13px;
+    }
+
+    .sector-alert-item:last-child { border-bottom: none; }
+
+    /* ── Stats Banner ── */
+    .notif-stats {
+      display: flex;
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+    }
+
+    .notif-stat-card {
+      flex: 1;
+      background: var(--gradient-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      text-align: center;
+    }
+
+    .notif-stat-val { font-size: 24px; font-weight: 800; }
+    .notif-stat-lbl { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+    .empty-notifs {
+      text-align: center;
+      padding: var(--space-3xl);
+      color: var(--text-muted);
+    }
+
+    .empty-notifs-icon { font-size: 56px; margin-bottom: var(--space-md); opacity: 0.5; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .notif-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-animated"></div>
+
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <img src="assets/logo.png" alt="Udec Parking Logo" style="height: 56px; width: 100%; object-fit: contain; mix-blend-mode: lighten; filter: drop-shadow(0 0 10px rgba(0, 168, 107, 0.3));">
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Principal</div>
+        <a class="nav-item" href="dashboard.html"><span class="nav-icon">🗺️</span> Mapa en Vivo</a>
+        <a class="nav-item active" href="notificaciones.html"><span class="nav-icon">🔔</span> Notificaciones <span class="nav-badge" id="notifBadge">0</span></a>
+        <a class="nav-item" href="chat.html"><span class="nav-icon">💬</span> Chat Soporte <span class="nav-badge green">Bot</span></a>
+        <div class="nav-section-title">Mi Cuenta</div>
+        <a class="nav-item" href="enrolamiento.html"><span class="nav-icon">🚗</span> Mis Vehículos</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-card" onclick="handleLogout()">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-info">
+            <div class="user-name" id="userName">Cargando...</div>
+            <div class="user-role" id="userRole">—</div>
+          </div>
+          <span class="user-logout">⏻</span>
+        </div>
+      </div>
+    </nav>
+
+    <div class="main-content">
+      <header class="topbar">
+        <button class="hamburger" onclick="toggleSidebar()">☰</button>
+        <div>
+          <div class="topbar-title">Centro de Notificaciones</div>
+          <div class="topbar-subtitle">Alertas y actualizaciones de estacionamientos</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="markAllRead()">✓ Marcar leídas</button>
+          <button class="btn btn-danger btn-sm" onclick="clearAll()">🗑️ Limpiar</button>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <div class="page-header">
+          <h1 class="page-title">🔔 Notificaciones</h1>
+        </div>
+
+        <!-- Stats -->
+        <div class="notif-stats">
+          <div class="notif-stat-card">
+            <div class="notif-stat-val" id="totalNotifs" style="color:var(--udec-blue-light)">0</div>
+            <div class="notif-stat-lbl">Total</div>
+          </div>
+          <div class="notif-stat-card">
+            <div class="notif-stat-val" id="unreadNotifs" style="color:var(--udec-gold)">0</div>
+            <div class="notif-stat-lbl">Sin leer</div>
+          </div>
+          <div class="notif-stat-card">
+            <div class="notif-stat-val" id="alertNotifs" style="color:var(--status-full)">0</div>
+            <div class="notif-stat-lbl">Alertas</div>
+          </div>
+        </div>
+
+        <div class="notif-grid">
+          <!-- LEFT: Notification List -->
+          <div>
+            <!-- Push Permission Banner -->
+            <div id="pushBanner" style="display:none;background:rgba(0,85,179,0.12);border:1px solid rgba(0,85,179,0.3);border-radius:var(--radius-lg);padding:var(--space-md) var(--space-lg);margin-bottom:var(--space-lg);display:flex;align-items:center;gap:var(--space-md);">
+              <span style="font-size:24px;">🔔</span>
+              <div style="flex:1;">
+                <div style="font-size:14px;font-weight:700;margin-bottom:3px;">Activar notificaciones push</div>
+                <div style="font-size:12px;color:var(--text-secondary);">Recibe alertas en tu navegador cuando se liberen espacios</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="requestPushPermission()">Activar</button>
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('pushBanner').style.display='none'">✕</button>
+            </div>
+
+            <!-- Filters -->
+            <div class="filter-bar">
+              <button class="filter-chip active" onclick="setFilter('all', this)">📋 Todas</button>
+              <button class="filter-chip" onclick="setFilter('disponibilidad', this)">🅿️ Disponibilidad</button>
+              <button class="filter-chip" onclick="setFilter('alerta', this)">⚠️ Alertas</button>
+              <button class="filter-chip" onclick="setFilter('sistema', this)">⚙️ Sistema</button>
+              <button class="filter-chip" onclick="setFilter('vehiculo', this)">🚗 Vehículo</button>
+              <div class="filter-bar-right">
+                <button class="filter-chip" onclick="addTestNotif()" style="color:var(--udec-green-light);">+ Simular</button>
+              </div>
+            </div>
+
+            <!-- List -->
+            <div id="notifList"></div>
+          </div>
+
+          <!-- RIGHT: Settings -->
+          <div>
+            <div class="settings-card">
+              <div class="settings-title">⚙️ Preferencias</div>
+
+              <div class="settings-section">
+                <div class="settings-section-label">Notificaciones</div>
+                <div class="toggle-row">
+                  <span class="toggle-label">🔔 Push del navegador</span>
+                  <label class="toggle"><input type="checkbox" id="togglePush" checked onchange="togglePushPref(this)"><div class="toggle-slider"></div></label>
+                </div>
+                <div class="toggle-row">
+                  <span class="toggle-label">🅿️ Disponibilidad</span>
+                  <label class="toggle"><input type="checkbox" id="toggleAvail" checked><div class="toggle-slider"></div></label>
+                </div>
+                <div class="toggle-row">
+                  <span class="toggle-label">🔴 Sectores llenos</span>
+                  <label class="toggle"><input type="checkbox" id="toggleFull" checked><div class="toggle-slider"></div></label>
+                </div>
+                <div class="toggle-row">
+                  <span class="toggle-label">📢 Mensajes del sistema</span>
+                  <label class="toggle"><input type="checkbox" id="toggleSystem"><div class="toggle-slider"></div></label>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <div class="settings-section-label">Alertas por sector</div>
+                <div id="sectorAlerts">
+                  <!-- Generated by JS -->
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <div class="settings-section-label">Frecuencia de actualización</div>
+                <select class="form-select form-input" style="font-size:12px;" id="updateFreq">
+                  <option value="30">Cada 30 segundos</option>
+                  <option value="60" selected>Cada 1 minuto</option>
+                  <option value="300">Cada 5 minutos</option>
+                  <option value="900">Cada 15 minutos</option>
+                </select>
+              </div>
+
+              <button class="btn btn-primary btn-full" style="margin-top:var(--space-sm);" onclick="saveSettings()">
+                💾 Guardar configuración
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/parking.js"></script>
+  <script>
+    const session = AuthModule.requireAuth();
+    let notifications = [];
+    let currentFilter = 'all';
+
+    if (session) {
+      document.getElementById('userName').textContent = session.name;
+      document.getElementById('userRole').textContent = session.role === 'student' ? '🎓 Estudiante' : '👔 Funcionario';
+      document.getElementById('userAvatar').textContent = session.initials || session.name[0];
+    }
+
+    // Generate initial notifications
+    const INITIAL_NOTIFS = [
+      {
+        id: 'n1', type: 'disponibilidad', icon: '🟢', iconClass: 'green', unread: true,
+        title: 'Estacionamiento disponible',
+        msg: 'Estadio UdeC tiene 85 espacios libres. Buena oportunidad para llegar temprano.',
+        time: '5 min', timestamp: Date.now() - 5*60*1000
+      },
+      {
+        id: 'n2', type: 'alerta', icon: '🔴', iconClass: 'red', unread: true,
+        title: 'Sector lleno: Facultad de Ingeniería',
+        msg: 'El estacionamiento de Ingeniería alcanzó el 100% de ocupación. Considera el sector de Rectoría.',
+        time: '12 min', timestamp: Date.now() - 12*60*1000
+      },
+      {
+        id: 'n3', type: 'alerta', icon: '⚠️', iconClass: 'yellow', unread: true,
+        title: 'Ocupación alta: Biblioteca Central',
+        msg: 'La Biblioteca Central está al 78% de ocupación. Quedan 26 espacios disponibles.',
+        time: '18 min', timestamp: Date.now() - 18*60*1000
+      },
+      {
+        id: 'n4', type: 'vehiculo', icon: '🚗', iconClass: 'blue', unread: false,
+        title: 'Vehículo registrado',
+        msg: 'Tu patente fue registrada exitosamente en el sistema UdeC ParkApp.',
+        time: '1 hora', timestamp: Date.now() - 60*60*1000
+      },
+      {
+        id: 'n5', type: 'disponibilidad', icon: '📉', iconClass: 'green', unread: false,
+        title: 'Sector liberándose: Campus Clínico',
+        msg: 'Campus Clínico está reduciendo su ocupación. Pasó de 92% a 75% en los últimos 20 minutos.',
+        time: '2 horas', timestamp: Date.now() - 2*60*60*1000
+      },
+      {
+        id: 'n6', type: 'sistema', icon: '⚙️', iconClass: 'purple', unread: false,
+        title: 'Sistema actualizado',
+        msg: 'El sistema de monitoreo fue actualizado con nuevas funciones. ¡Explora el chat de soporte!',
+        time: 'Ayer', timestamp: Date.now() - 24*60*60*1000
+      },
+      {
+        id: 'n7', type: 'disponibilidad', icon: '🅿️', iconClass: 'blue', unread: false,
+        title: 'Mañana: hora punta esperada',
+        msg: 'Se espera alta demanda entre 08:00-10:00. Llega antes para asegurar tu espacio.',
+        time: 'Ayer', timestamp: Date.now() - 26*60*60*1000
+      }
+    ];
+
+    function initNotifs() {
+      try {
+        const stored = localStorage.getItem('udec_notifs');
+        if (stored) {
+          notifications = JSON.parse(stored);
+        } else {
+          notifications = [...INITIAL_NOTIFS];
+          saveNotifs();
+        }
+      } catch (e) {
+        notifications = [...INITIAL_NOTIFS];
+      }
+      renderNotifs();
+      updateStats();
+      updateBadge();
+    }
+
+    function saveNotifs() {
+      try { localStorage.setItem('udec_notifs', JSON.stringify(notifications)); } catch(e) {}
+    }
+
+    function setFilter(filter, btn) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      renderNotifs();
+    }
+
+    function renderNotifs() {
+      const container = document.getElementById('notifList');
+      const filtered = currentFilter === 'all' ? notifications : notifications.filter(n => n.type === currentFilter);
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="empty-notifs">
+            <div class="empty-notifs-icon">🔕</div>
+            <div style="font-size:15px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">No hay notificaciones</div>
+            <div style="font-size:13px;">Las alertas aparecerán aquí automáticamente</div>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(n => `
+        <div class="notif-item ${n.unread ? 'unread' : ''}" id="ni-${n.id}" onclick="markRead('${n.id}')">
+          <div class="notif-icon ${n.iconClass}">${n.icon}</div>
+          <div class="notif-body">
+            <div class="notif-title">
+              ${n.unread ? '<div class="notif-unread-dot"></div>' : ''}
+              ${n.title}
+            </div>
+            <div class="notif-msg">${n.msg}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+            <div class="notif-time">${n.time}</div>
+            <button class="notif-dismiss" onclick="event.stopPropagation();dismissNotif('${n.id}')" title="Descartar">✕</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function markRead(id) {
+      const n = notifications.find(n => n.id === id);
+      if (n) { n.unread = false; saveNotifs(); renderNotifs(); updateStats(); updateBadge(); }
+    }
+
+    function markAllRead() {
+      notifications.forEach(n => n.unread = false);
+      saveNotifs(); renderNotifs(); updateStats(); updateBadge();
+      showToast('success', '✓ Todo leído', 'Todas las notificaciones marcadas como leídas');
+    }
+
+    function dismissNotif(id) {
+      notifications = notifications.filter(n => n.id !== id);
+      saveNotifs(); renderNotifs(); updateStats(); updateBadge();
+    }
+
+    function clearAll() {
+      if (!confirm('¿Eliminar todas las notificaciones?')) return;
+      notifications = [];
+      saveNotifs(); renderNotifs(); updateStats(); updateBadge();
+      showToast('info', '🗑️ Limpiado', 'Historial de notificaciones eliminado');
+    }
+
+    function updateStats() {
+      const total = notifications.length;
+      const unread = notifications.filter(n => n.unread).length;
+      const alerts = notifications.filter(n => n.type === 'alerta').length;
+      document.getElementById('totalNotifs').textContent = total;
+      document.getElementById('unreadNotifs').textContent = unread;
+      document.getElementById('alertNotifs').textContent = alerts;
+    }
+
+    function updateBadge() {
+      const count = notifications.filter(n => n.unread).length;
+      const badge = document.getElementById('notifBadge');
+      badge.textContent = count;
+      badge.style.display = count === 0 ? 'none' : '';
+      try { localStorage.setItem('udec_notif_count', count); } catch(e) {}
+    }
+
+    function addTestNotif() {
+      ParkingModule.initState();
+      const sectors = ParkingModule.getAllSectors();
+      const s = sectors[Math.floor(Math.random() * sectors.length)];
+      const id = 'n_' + Date.now();
+      const types = [
+        { type: 'disponibilidad', icon: '🟢', iconClass: 'green', title: `Espacio disponible: ${s.shortName}`, msg: `${s.name} tiene ${s.available} espacios libres (${100 - s.occupancyPercent}% libre).` },
+        { type: 'alerta', icon: '🔴', iconClass: 'red', title: `Alerta: ${s.shortName} casi lleno`, msg: `${s.name} está al ${s.occupancyPercent}% de ocupación. Solo quedan ${s.available} espacios.` }
+      ];
+      const t = types[Math.floor(Math.random() * types.length)];
+      const notif = { id, ...t, unread: true, time: 'Ahora', timestamp: Date.now() };
+      notifications.unshift(notif);
+      saveNotifs(); renderNotifs(); updateStats(); updateBadge();
+      showToast('info', '🔔 Nueva alerta', t.title);
+
+      // Native push notification
+      if (Notification.permission === 'granted') {
+        new Notification('UdeC ParkApp', { body: t.msg, icon: '🅿️' });
+      }
+    }
+
+    function requestPushPermission() {
+      if ('Notification' in window) {
+        Notification.requestPermission().then(perm => {
+          if (perm === 'granted') {
+            showToast('success', '✅ Notificaciones activadas', 'Recibirás alertas en tu navegador');
+            document.getElementById('pushBanner').style.display = 'none';
+          } else {
+            showToast('warning', '⚠️ Denegado', 'Permite las notificaciones en la configuración del navegador');
+          }
+        });
+      }
+    }
+
+    function togglePushPref(el) {
+      if (el.checked && 'Notification' in window && Notification.permission === 'default') {
+        requestPushPermission();
+      }
+    }
+
+    function saveSettings() {
+      showToast('success', '💾 Guardado', 'Preferencias de notificación actualizadas');
+    }
+
+    // Render sector alerts in settings
+    function renderSectorAlerts() {
+      ParkingModule.initState();
+      const sectors = ParkingModule.getAllSectors();
+      const container = document.getElementById('sectorAlerts');
+      container.innerHTML = sectors.map(s => `
+        <div class="sector-alert-item">
+          <span>${s.emoji} ${s.shortName}</span>
+          <label class="toggle">
+            <input type="checkbox" checked>
+            <div class="toggle-slider"></div>
+          </label>
+        </div>
+      `).join('');
+    }
+
+    // Check push permission banner
+    if ('Notification' in window && Notification.permission === 'default') {
+      document.getElementById('pushBanner').style.display = 'flex';
+    }
+
+    // Auto-add simulated notification
+    setInterval(() => {
+      if (Math.random() > 0.7 && document.getElementById('toggleAvail').checked) {
+        addTestNotif();
+      }
+    }, 60000);
+
+    function handleLogout() {
+      if (confirm('¿Deseas cerrar sesión?')) { AuthModule.logout(); window.location.href = 'index.html'; }
+    }
+
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+    function showToast(type, title, msg, duration = 4000) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+      toast.innerHTML = `<span class="toast-icon">${icons[type]}</span><div class="toast-body"><div class="toast-title">${title}</div><div class="toast-msg">${msg}</div></div><span class="toast-close" onclick="this.parentElement.remove()">✕</span>`;
+      container.appendChild(toast);
+      setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, duration);
+    }
+
+    initNotifs();
+    renderSectorAlerts();
+  </script>
+</body>
+</html>
